@@ -37,9 +37,9 @@ There is no docker
 
 ### Other
 
-1)I made my own ip address to redirect to galaxy.htb in /etc/apache2/sites-avialabel/000-default.conf
-2) I specifically made website unable to see .zip file
-3) I specifically made doston user unable to see following directory and files: /etc/passwd, /etc/shells/, /home (but can access it's own directory), /var
+1)I made my own ip address to redirect to galaxy.htb in /etc/apache2/sites-avialabel/000-default.conf<br>
+2) I specifically made website unable to see .zip file<br>
+3) I specifically made doston user unable to see following directory and files: <br>/etc/passwd<br> /etc/shells/<br> /home (but can access it's own directory)<br> /var
 
 
 # Writeup
