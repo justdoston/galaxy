@@ -44,21 +44,19 @@ There is no docker
 
 # Writeup
 
-[
-
-Provide an in-depth explanation of the steps it takes to complete the box from start to finish. Divide your walkthrough into the below sections and sub-sections and include images to guide the user through the exploitation. 
-
-Please also include screenshots of any visual elements (like websites) that are part of the submission. Our review team is not only evaluating the technical path, but the realism and story of the box.
-
-Show **all** specific commands using markdown's triple-backticks (```` ```bash ````) such that the reader can copy/paste them, and also show the commands' output through images or markdown code blocks (```` ``` ````). 
-
-**A reader should be able to solve the box entirely by copying and pasting the commands you provide.**
-
-]
-
 # Enumeration
 
-[Describe the steps that describe the box's enumeration. Typically, this includes a sub-heading for the Nmap scan, HTTP/web enumeration, etc.]
+We begin enumeration with nmap tools from ports of target:<br>
+`sudo nmap -sC -sV 192.168.2.110 -p- --min-rate=1000 -T4`<br>
+`-sC` This flag for basic scripting<br>
+`-sV` This flag for to check version<br>
+`-p-` To check all ports we do not want to miss any<br>
+`-T4` This flag to make scaning slightly faster (default -T3 when you don't specify)<br>
+`--min-rate=1000` This is minimum rate of nmap packets<br>
+
+![image](https://github.com/user-attachments/assets/0ceb7925-bc85-46b2-a07c-a15b77d72ce6)
+
+We can see there are 22 and 80 port open. Website has galaxy.htb domain we need to add that domain with it's IP to our /etc/hosts file :<br>
 
 # Foothold
 
