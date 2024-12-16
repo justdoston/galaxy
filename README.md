@@ -2,7 +2,7 @@
 
 ## Introduction
 
-I made linux machine box I wanted to make it realistic as much as possible. This machine requieres critical thinking which is usefull for hackers
+Galaxy is medium level machine In this challenge, machine hosting a beta website about facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing the restriction, I accessed the "doston" user account, where their password was leaked. The "doston" user had a custom .sh file that, we can exploit to gain shell access as the www-data user. This user had access to a .zip file under /var/www/html/developers. After cracking the zip file, the "master" user's password was exposed, allowing me to run nano without a password.
 
 ## Info for HTB
 
@@ -13,16 +13,16 @@ Passwords:
 | User  | Password                            |
 | ----- | ----------------------------------- |
 | master | master6633 |
-| doston | Ab4018618c |
+| doston | Ab401c |
 | root  | root8618 |
 
 ### Key Processes
 
 1) SSH server on 22 port
 2) Apache2 server on 80 port which is vulnerable to http host header
-3) There is custom copy.sh file in doston user's home directory
+3) There is custom copy.sh file in doston user's home directory which is allowed it to run without password for doston user
 4) There is infodevs.zip file in /var/www/html/developers directory with password blink182 (which is crackable under 3 minute)
-5) There is /usr/bin/php suid bit set which only master user can run
+5) /usr/bin/nano tool allowed to run with sudo without password for master.
 
 ### Automation / Crons
 There is no automation
