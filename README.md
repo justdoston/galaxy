@@ -79,32 +79,25 @@ Let's use proxy forwarding tool such as burp suite to manupulate and try this te
 
 
 `X-Forwarded-For: 127.0.0.1` header successfuly worked to bypass<br>
-![image](https://github.com/user-attachments/assets/5dd16a1c-d07d-482a-bb48-c757fe1961a4)
+![image](https://github.com/user-attachments/assets/c1ed7ece-f4d2-46d1-a9d2-8d07ddd472b6)
+
 
 # Foothold
 
 We use same technique to see content of README.md file:<br>
-```
-Message from team leader!!!
-
-Attention Developers!
-
-I will not be able to come to the office next week, and I have already discussed the matter with the manager. 
-
-As we all know, we have important ongoing projects that need to be completed. We cannot afford delays or hit a dead end.
-
-To ensure progress continues, I created temporary user with my name. You can log in using the password: Ab401c. 
-
-However, please use ONLY my user to transfer completed web files and consider /developers directory as testing directory. 
-
-Please prioritize completing the project during this time.
-
-Best regards,
-Doston
-```
-
+![image](https://github.com/user-attachments/assets/7533a024-0629-49f8-8040-4c65d5140d79)
 <br>
-Accoridng to message for some reason team leader is not avialable next weak and he created temporary user with his name which is `doston` let's try to login via ssh<br>
+Not much usefull let's take a look to devs.txt file<br>
+```
+user pass of developers who working to build this website
+
+doston:Ab401c *
+john:sfheie32 
+mark:dfgid23 
+akmal:shgj62
+```
+<br>
+Now we have credentials let's try doston user to login with ssh<br>
 
 ![image](https://github.com/user-attachments/assets/afb30792-72f1-4ba8-9bcb-2b82cd112ed4)
 <br>
