@@ -2,8 +2,7 @@
 
 ## Introduction
 
-Galaxy is easy level machine In this challenge, machine hosting a beta website about facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing the restriction, I accessed the "doston" user account, where their password was leaked. The "doston" user had a custom .sh file that, we can exploit rce.
-
+Galaxy is easy level machine In this challenge, machine hosting a beta website about facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing 403 restriction we can see devs left webshell which uses custom web user after user shell enumeration leads us to php which has suid bit permission
 ## Info for HTB
 
 ### Access
