@@ -92,7 +92,7 @@ Not much usefull let's take a look to web.php file<br>
 
 <br>
 It looks like developers left webshell in developers directory, it is because web site hasn't been finished fully yet<br>
-We can copy our own id_rsa.pub (publick key) to web users authorize_keys to login via ssh without a password
+We can copy our own id_rsa.pub (publick key) to web users authorized_keys to login via ssh without a password
 
 ```
 echo "public key" > /home/web/.ssh/authorized_keys
