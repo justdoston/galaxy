@@ -13,7 +13,7 @@ Passwords:
 | User  | Password                            |
 | ----- | ----------------------------------- |
 | web | Ab401c |
-| root  | root8618 |
+| root  | 1roots |
 
 ### Key Processes
 
