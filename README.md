@@ -3,7 +3,7 @@
 ## Introduction
 
 This machine inspired from this bug bounty report: https://hackerone.com/reports/125980<br>
-Galaxy is medium level machine with SSTI vulnerability and CVE-2019-14287 for root part. I suggest medium because getting shell is not straight forward it requires enumeration to get rce via SSTI, however players can do that by googling about SSTI. Player will learn about Popen subclassess and running multiple commands.
+Galaxy is medium level machine with SSTI vulnerability in register page and /usr/bin/cp privilege for root part. I suggest medium because getting shell is not straight forward it requires enumeration to get rce via SSTI, however players can do that by googling about SSTI. Player will learn about Popen subclassess and running multiple commands.
 ## Info for HTB
 
 ### Access
@@ -21,7 +21,7 @@ Passwords:
 2) Apache2 server on 80 port which is restricted page vulnerable to SSTI
 3) Register page username vulnerable to SSTI which happened in real world. This box inspired from https://hackerone.com/reports/125980
 4) For root privilege I allowed /usr/bin/cp which players need critical thinking
-5) There is other user besides `web` and `root` (john,mathew,lily) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out CVE-2019-14287
+5) There is other user besides `web` and `root` (john,mathew,lily) and this is dummy user which has no password. I set them for box story and player needs to critical thinking to get shell after finding out sudo permissions
 
 ### Automation / Crons
 There is no automation
